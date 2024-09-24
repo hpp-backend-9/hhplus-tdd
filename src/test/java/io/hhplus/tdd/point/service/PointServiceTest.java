@@ -1,6 +1,8 @@
 package io.hhplus.tdd.point.service;
 
+import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
+import io.hhplus.tdd.point.TransactionType;
 import io.hhplus.tdd.point.UserPoint;
 import io.hhplus.tdd.point.exception.PointException;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +14,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +27,9 @@ public class PointServiceTest {
 
     @Mock
     private UserPointTable userPointTable;
+
+    @Mock
+    private PointHistoryTable pointHistoryTable;
 
     // 포인트 조회
     private void pointInquiry(long id, long currentPoint) {
@@ -119,6 +126,41 @@ public class PointServiceTest {
     }
 
     @Test
+    @DisplayName("정상적으로 포인트를 사용한 경우")
+    void usePointSuccessfully() {
+        // given : 기존 포인트가 2000일 때 500 사용
+        long id = 1L;
+        int currentPoint = 2000;
+        int usePoint = 500;
+        int remainPoint = currentPoint - usePoint;
+
+        pointInquiry(id, currentPoint);
+
+        // when : 포인트 사용
+        pointService.use(id, usePoint);
+
+        // then : 포인트 차감 확인
+        verify(userPointTable).insertOrUpdate(id, remainPoint);
+    }
+
+    @Test
+    @DisplayName("포인트 사용 시 포인트 내역에 기록되는지 확인")
+    void useAndRecordPointHistory() {
+        // given : 500 포인트 사용
+        long id = 1L;
+        long currentPoint = 2000;
+        long usePoint = 500;
+        pointInquiry(id, currentPoint);
+
+        // when : 포인트 사용
+        pointService.use(id, usePoint);
+
+        // then : 포인트 내역에 사용 기록이 추가되는지 확인
+        verify(userPointTable).insertOrUpdate(eq(id), eq(currentPoint - usePoint));
+        verify(pointHistoryTable).insert(eq(id), eq(usePoint), eq(TransactionType.USE), anyLong());
+    }
+
+    @Test
     @DisplayName("음수를 포인트로 사용하려는 경우")
     void usingNegativePoint() {
         // given : 음수를 사용
@@ -138,9 +180,9 @@ public class PointServiceTest {
     void chargePointSuccessfully() {
         // given : 정상적인 충전 포인트가 입력되었을 때
         long id = 1L;
-        int currentPoint = 1000;
-        int chargePoint = 200;
-        int totalPoint = currentPoint + chargePoint;
+        long currentPoint = 1000;
+        long chargePoint = 200;
+        long totalPoint = currentPoint + chargePoint;
 
         pointInquiry(id, currentPoint);
 
@@ -149,5 +191,20 @@ public class PointServiceTest {
 
         // then : 포인트가 정상적으로 충전되었는지 확인
         verify(userPointTable).insertOrUpdate(id, totalPoint);
+    }
+
+    @Test
+    @DisplayName("포인트 충전 시 포인트 내역이 기록되는지 확인")
+    void chargePointRecordHistory() {
+        long id = 1L;
+        long currentPoint = 3000;
+        long chargePoint = 1000;
+        pointInquiry(id, currentPoint);
+
+        pointService.charge(id, chargePoint);
+
+        // then : 포인트 내역에 충전 기록이 추가 되는지 확인
+        verify(userPointTable).insertOrUpdate(eq(id), eq(currentPoint + chargePoint));
+        verify(pointHistoryTable).insert(eq(id), eq(chargePoint), eq(TransactionType.CHARGE), anyLong());
     }
 }

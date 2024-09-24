@@ -1,6 +1,8 @@
 package io.hhplus.tdd.point.service;
 
+import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
+import io.hhplus.tdd.point.TransactionType;
 import io.hhplus.tdd.point.UserPoint;
 import io.hhplus.tdd.point.exception.PointException;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 public class PointService {
 
     private final UserPointTable userPointTable;
+    private final PointHistoryTable pointHistoryTable;
 
     public UserPoint selectPointById(long id) {
 
@@ -31,10 +34,15 @@ public class PointService {
         PointValidator.validateAmount(amount);
 
         UserPoint userPoint = selectPointById(id);
-
         long updateAmount = userPoint.point() + amount;
 
-        return userPointTable.insertOrUpdate(id, updateAmount);
+        // 포인트 충전
+        UserPoint updateUserPoint = userPointTable.insertOrUpdate(id, updateAmount);
+
+        // 포인트 충전 내역 추가
+        pointHistoryTable.insert(id, amount, TransactionType.CHARGE, System.currentTimeMillis());
+
+        return updateUserPoint;
     }
 
     public UserPoint use(long id, long amount) {
@@ -49,6 +57,10 @@ public class PointService {
         }
 
         long updateAmount = userPoint.point() - amount;
-        return userPointTable.insertOrUpdate(id, updateAmount);
+        UserPoint updateUserPoint = userPointTable.insertOrUpdate(id, updateAmount);
+
+        // 포인트 사용 내역
+        pointHistoryTable.insert(id, amount, TransactionType.USE, System.currentTimeMillis());
+        return updateUserPoint;
     }
 }
