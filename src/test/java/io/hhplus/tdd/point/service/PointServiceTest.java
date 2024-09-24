@@ -2,6 +2,7 @@ package io.hhplus.tdd.point.service;
 
 import io.hhplus.tdd.database.UserPointTable;
 import io.hhplus.tdd.point.UserPoint;
+import io.hhplus.tdd.point.exception.PointException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,7 +44,7 @@ public class PointServiceTest {
 
         // when, then : 예외 발생
         assertThatThrownBy(() -> pointService.selectPointById(999999999999L))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(PointException.class)
                 .hasMessageContaining("입력한 ID가 존재하지 않습니다.");
     }
 
@@ -52,22 +53,17 @@ public class PointServiceTest {
     void invalidIdFormat() {
         // then : 예외 발생
         assertThatThrownBy(() -> pointService.selectPointById(-1L))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(PointException.class)
                 .hasMessageContaining("ID는 0 이상의 숫자여야 합니다.");
     }
 
     @Test
     @DisplayName("0을 충전하려는 경우")
     void chargeZeroPoint() {
-
-        // 기존에 존재하는 사용자로 설정
-        long id = 1L;
-        pointInquiry(id, 1000);
-
         // when, then : 0원을 충전하려고 한다면 예외 발생
-        assertThatThrownBy(() -> pointService.charge(id, 0))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("충전 금액은 0보다 커야합니다.");
+        assertThatThrownBy(() -> pointService.charge(1L, 0))
+                .isInstanceOf(PointException.class)
+                .hasMessageContaining("충전 금액은 0보다 커야 합니다.");
     }
 
     @Test
@@ -102,7 +98,7 @@ public class PointServiceTest {
 
         //when, then : 예외 발생
         assertThatThrownBy(() -> pointService.use(notExistId, usePoint))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(PointException.class)
                 .hasMessageContaining("입력한 ID가 존재하지 않습니다.");
     }
 
@@ -118,7 +114,7 @@ public class PointServiceTest {
 
         // When, then : 예외 발생
         assertThatThrownBy(() -> pointService.use(id, wantUsePoint))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(PointException.class)
                 .hasMessageContaining("잔여 포인트가 부족합니다.");
     }
 
@@ -133,7 +129,7 @@ public class PointServiceTest {
 
         // when, then : 예외 발생
         assertThatThrownBy(() -> pointService.use(id, -100))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(PointException.class)
                 .hasMessageContaining("사용할 포인트는 0보다 커야 합니다.");
     }
 
