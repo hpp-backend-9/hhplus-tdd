@@ -23,11 +23,23 @@ public class PointServiceTest {
     @Mock
     private UserPointTable userPointTable;
 
+    // 포인트 조회
+    private void pointInquiry(long id, long currentPoint) {
+        UserPoint userPoint = new UserPoint(id, currentPoint, System.currentTimeMillis());
+        when(userPointTable.selectById(id)).thenReturn(userPoint);
+    }
+
+    // 사용자가 존재하지 않음
+    private void userNotExist(long id) {
+        when(userPointTable.selectById(id)).thenReturn(null);
+    }
+
     @Test
     @DisplayName("존재하지 않는 ID인 경우")
     void notExsistId() {
         // given : 입력한 ID가 존재하지 않다면
-        when(userPointTable.selectById(999999999999L)).thenReturn(null);
+        long nonExistingId = 999999999999L;
+        userNotExist(nonExistingId);
 
         // when, then : 예외 발생
         assertThatThrownBy(() -> pointService.selectPointById(999999999999L))
@@ -45,10 +57,15 @@ public class PointServiceTest {
     }
 
     @Test
-    @DisplayName("기존 포인트에 0을 충전하는 경우")
+    @DisplayName("0을 충전하려는 경우")
     void chargeZeroPoint() {
+
+        // 기존에 존재하는 사용자로 설정
+        long id = 1L;
+        pointInquiry(id, 1000);
+
         // when, then : 0원을 충전하려고 한다면 예외 발생
-        assertThatThrownBy(() -> pointService.charge(1L, 0))
+        assertThatThrownBy(() -> pointService.charge(id, 0))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("충전 금액은 0보다 커야합니다.");
     }
@@ -62,9 +79,9 @@ public class PointServiceTest {
         int chargePoint = 1000;
         int totalPoint = currentPoint + chargePoint;
 
-        // when : 이용자의 현재 포인트 조회 후 1000원 충전
-        UserPoint currentUserPoint = new UserPoint(id, currentPoint, System.currentTimeMillis());
-        when(userPointTable.selectById(id)).thenReturn(currentUserPoint);
+        pointInquiry(id, currentPoint);
+
+        // when :  1000원 충전
         pointService.charge(id, chargePoint);
 
         // then : 2000 + 1000 = 3000이 맞는지 확인
@@ -81,8 +98,7 @@ public class PointServiceTest {
         long notExistId = 99999999L;
         int usePoint = 1000;
 
-        // 존재하지 않는 ID일 때 null 반환
-        when(userPointTable.selectById(notExistId)).thenReturn(null);
+        userNotExist(notExistId);
 
         //when, then : 예외 발생
         assertThatThrownBy(() -> pointService.use(notExistId, usePoint))
@@ -98,9 +114,7 @@ public class PointServiceTest {
         int currentPoint = 1000;
         int wantUsePoint = 10000;
 
-        // 사용자 상황 설정
-        UserPoint currentUserPoint = new UserPoint(id, currentPoint, System.currentTimeMillis());
-        when(userPointTable.selectById(id)).thenReturn(currentUserPoint);
+        pointInquiry(id, currentPoint);
 
         // When, then : 예외 발생
         assertThatThrownBy(() -> pointService.use(id, wantUsePoint))
@@ -113,10 +127,12 @@ public class PointServiceTest {
     void usingNegativePoint() {
         // given : 음수를 사용
         long id = 1L;
-        int negativePoint = -100;
+
+        // 기존에 존재하는 사용자로 설정
+        pointInquiry(id, 1000);
 
         // when, then : 예외 발생
-        assertThatThrownBy(() -> pointService.use(id, negativePoint))
+        assertThatThrownBy(() -> pointService.use(id, -100))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("사용할 포인트는 0보다 커야 합니다.");
     }
@@ -130,8 +146,7 @@ public class PointServiceTest {
         int chargePoint = 200;
         int totalPoint = currentPoint + chargePoint;
 
-        UserPoint currentUserPoint = new UserPoint(id, currentPoint, System.currentTimeMillis());
-        when(userPointTable.selectById(id)).thenReturn(currentUserPoint);
+        pointInquiry(id, currentPoint);
 
         // when : 포인트 충전
         pointService.charge(id, chargePoint);
@@ -139,5 +154,4 @@ public class PointServiceTest {
         // then : 포인트가 정상적으로 충전되었는지 확인
         verify(userPointTable).insertOrUpdate(id, totalPoint);
     }
-
 }

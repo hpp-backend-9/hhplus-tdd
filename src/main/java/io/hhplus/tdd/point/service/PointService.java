@@ -28,23 +28,24 @@ public class PointService {
 
     public UserPoint charge(long id, long amount) {
 
+        UserPoint userPoint = selectPointById(id);
+
         if (amount <= 0) {
             throw new IllegalArgumentException("충전 금액은 0보다 커야합니다.");
         }
 
-        UserPoint userPoint = selectPointById(id);
         long updateAmount = userPoint.point() + amount;
 
         return userPointTable.insertOrUpdate(id, updateAmount);
     }
 
     public UserPoint use(long id, long amount) {
+
+        UserPoint userPoint = selectPointById(id);
+
         if (amount <= 0) {
             throw new IllegalArgumentException("사용할 포인트는 0보다 커야 합니다.");
         }
-
-        // 사용자 조회
-        UserPoint userPoint = selectPointById(id);
 
         if (userPoint.point() < amount) {
             throw new IllegalArgumentException("잔여 포인트가 부족합니다.");
