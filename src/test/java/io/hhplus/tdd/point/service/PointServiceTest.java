@@ -73,4 +73,71 @@ public class PointServiceTest {
         UserPoint updateUserPoint = new UserPoint(id, totalPoint, System.currentTimeMillis());
         assertThat(updateUserPoint.point()).isEqualTo(totalPoint);
     }
+
+    @Test
+    @DisplayName("포인트 사용하려고 하는데 아이디가 없는 경우")
+    void cannotUsePointsIfIdDoesNotExist() {
+        // given : 존재하지 않는 않는 ID로 포인트를 사용하려고 하는 경우
+        long notExistId = 99999999L;
+        int usePoint = 1000;
+
+        // 존재하지 않는 ID일 때 null 반환
+        when(userPointTable.selectById(notExistId)).thenReturn(null);
+
+        //when, then : 예외 발생
+        assertThatThrownBy(() -> pointService.use(notExistId, usePoint))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("입력한 ID가 존재하지 않습니다.");
+    }
+
+    @Test
+    @DisplayName("잔여 포인트보다 더 많이 사용하고자 하는 경우")
+    void exceededPoint() {
+        // given : 사용자의 포인트가 1000인데 10000을 사용하고자 하는 경우
+        long id = 1L;
+        int currentPoint = 1000;
+        int wantUsePoint = 10000;
+
+        // 사용자 상황 설정
+        UserPoint currentUserPoint = new UserPoint(id, currentPoint, System.currentTimeMillis());
+        when(userPointTable.selectById(id)).thenReturn(currentUserPoint);
+
+        // When, then : 예외 발생
+        assertThatThrownBy(() -> pointService.use(id, wantUsePoint))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("잔여 포인트가 부족합니다.");
+    }
+
+    @Test
+    @DisplayName("음수를 포인트로 사용하려는 경우")
+    void usingNegativePoint() {
+        // given : 음수를 사용
+        long id = 1L;
+        int negativePoint = -100;
+
+        // when, then : 예외 발생
+        assertThatThrownBy(() -> pointService.use(id, negativePoint))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("사용할 포인트는 0보다 커야 합니다.");
+    }
+
+    @Test
+    @DisplayName("정상적으로 포인트를 충전하는 경우")
+    void chargePointSuccessfully() {
+        // given : 정상적인 충전 포인트가 입력되었을 때
+        long id = 1L;
+        int currentPoint = 1000;
+        int chargePoint = 200;
+        int totalPoint = currentPoint + chargePoint;
+
+        UserPoint currentUserPoint = new UserPoint(id, currentPoint, System.currentTimeMillis());
+        when(userPointTable.selectById(id)).thenReturn(currentUserPoint);
+
+        // when : 포인트 충전
+        pointService.charge(id, chargePoint);
+
+        // then : 포인트가 정상적으로 충전되었는지 확인
+        verify(userPointTable).insertOrUpdate(id, totalPoint);
+    }
+
 }
