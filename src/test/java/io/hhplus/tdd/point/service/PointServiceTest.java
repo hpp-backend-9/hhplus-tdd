@@ -58,6 +58,13 @@ public class PointServiceTest {
         when(userPointTable.selectById(id)).thenReturn(null);
     }
 
+    // 예외 메세지 처리
+    private void assertException(Runnable runnable, String exceptionMessage) {
+        assertThatThrownBy(runnable::run)
+                .isInstanceOf(PointException.class)
+                .hasMessage(exceptionMessage);
+    }
+
     @Test
     @DisplayName("존재하지 않는 ID인 경우")
     void notExsistIdwhs() {
@@ -66,27 +73,21 @@ public class PointServiceTest {
         userNotExist(nonExistingId);
 
         // when, then : 예외 발생
-        assertThatThrownBy(() -> pointService.selectPointById(999999999999L))
-                .isInstanceOf(PointException.class)
-                .hasMessageContaining("입력한 ID가 존재하지 않습니다.");
+        assertException(() -> pointService.selectPointById(nonExistingId), "입력한 ID가 존재하지 않습니다.");
     }
 
     @Test
     @DisplayName("유효하지 않은 패턴의 ID가 입력된 경우")
     void invalidIdFormat() {
         // then : 예외 발생
-        assertThatThrownBy(() -> pointService.selectPointById(-1L))
-                .isInstanceOf(PointException.class)
-                .hasMessageContaining("ID는 0 이상의 숫자여야 합니다.");
+        assertException(() -> pointService.selectPointById(-1L), "ID는 0 이상의 숫자여야 합니다.");
     }
 
     @Test
     @DisplayName("0을 충전하려는 경우")
     void chargeZeroPoint() {
         // when, then : 0원을 충전하려고 한다면 예외 발생
-        assertThatThrownBy(() -> pointService.charge(id, 0))
-                .isInstanceOf(PointException.class)
-                .hasMessageContaining("충전 금액은 0보다 커야 합니다.");
+        assertException(() -> pointService.charge(id, 0L), "충전 금액은 0보다 커야 합니다.");
     }
 
     @Test
@@ -117,9 +118,7 @@ public class PointServiceTest {
         userNotExist(notExistId);
 
         //when, then : 예외 발생
-        assertThatThrownBy(() -> pointService.use(notExistId, usePoint))
-                .isInstanceOf(PointException.class)
-                .hasMessageContaining("입력한 ID가 존재하지 않습니다.");
+        assertException(() -> pointService.use(notExistId, usePoint), "입력한 ID가 존재하지 않습니다.");
     }
 
     @Test
@@ -131,9 +130,7 @@ public class PointServiceTest {
         pointInquiry(id);
 
         // When, then : 예외 발생
-        assertThatThrownBy(() -> pointService.use(id, wantUsePoint))
-                .isInstanceOf(PointException.class)
-                .hasMessageContaining("잔여 포인트가 부족합니다.");
+        assertException(() -> pointService.use(id, wantUsePoint), "잔여 포인트가 부족합니다.");
     }
 
     @Test
@@ -175,9 +172,7 @@ public class PointServiceTest {
         pointInquiry(id);
 
         // when, then : 예외 발생
-        assertThatThrownBy(() -> pointService.use(id, -100))
-                .isInstanceOf(PointException.class)
-                .hasMessageContaining("사용할 포인트는 0보다 커야 합니다.");
+        assertException(() -> pointService.use(id, -100), "사용할 포인트는 0보다 커야 합니다.");
     }
 
     @Test
@@ -259,9 +254,7 @@ public class PointServiceTest {
                 .when(pointHistoryTable).insert(eq(id), eq(chargePoint), eq(TransactionType.CHARGE), anyLong());
 
         // when, then : 예외처리
-        assertThatThrownBy(() -> pointService.charge(id, chargePoint))
-                .isInstanceOf(PointException.class)
-                .hasMessageContaining("포인트 내역 기록 실패");
+        assertException(() -> pointService.charge(id, chargePoint), "포인트 내역 기록 실패");
     }
 
     @Test
@@ -275,8 +268,6 @@ public class PointServiceTest {
                 .when(userPointTable).insertOrUpdate(eq(id), eq(currentPoint + chargePoint));
 
         // when, then : 포인트 충전 시 예외 발생
-        assertThatThrownBy(() -> pointService.charge(id, chargePoint))
-                .isInstanceOf(PointException.class)
-                .hasMessageContaining("포인트 업데이트 실패");
+        assertException(() -> pointService.charge(id, chargePoint), "포인트 업데이트 실패");
     }
 }
