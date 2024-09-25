@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -245,5 +246,37 @@ public class PointServiceTest {
 
         // then : 빈 리스트 반환
         assertThat(result).isEqualTo(emptyHistories);
+    }
+
+    @Test
+    @DisplayName("포인트 충전 시 포인트 내역 INSERT 실패")
+    void chargePointHistoryRecordFail() {
+        long chargePoint = 1000;
+        pointInquiry(id);
+
+        // given : 포인트 내역 기록 실패
+        doThrow(new PointException("포인트 내역 기록 실패"))
+                .when(pointHistoryTable).insert(eq(id), eq(chargePoint), eq(TransactionType.CHARGE), anyLong());
+
+        // when, then : 예외처리
+        assertThatThrownBy(() -> pointService.charge(id, chargePoint))
+                .isInstanceOf(PointException.class)
+                .hasMessageContaining("포인트 내역 기록 실패");
+    }
+
+    @Test
+    @DisplayName("포인트 업데이트 실패 시 예외 발생")
+    void updatePointFailureTest() {
+        long chargePoint = 1000;
+        pointInquiry(id);
+
+        // given : 포인트 업데이트 실패 시 예외처리
+        doThrow(new PointException("포인트 업데이트 실패"))
+                .when(userPointTable).insertOrUpdate(eq(id), eq(currentPoint + chargePoint));
+
+        // when, then : 포인트 충전 시 예외 발생
+        assertThatThrownBy(() -> pointService.charge(id, chargePoint))
+                .isInstanceOf(PointException.class)
+                .hasMessageContaining("포인트 업데이트 실패");
     }
 }
