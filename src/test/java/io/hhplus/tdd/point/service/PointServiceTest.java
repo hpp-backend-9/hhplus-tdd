@@ -2,6 +2,7 @@ package io.hhplus.tdd.point.service;
 
 import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
+import io.hhplus.tdd.point.PointHistory;
 import io.hhplus.tdd.point.TransactionType;
 import io.hhplus.tdd.point.UserPoint;
 import io.hhplus.tdd.point.exception.PointException;
@@ -12,6 +13,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Collections;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -202,5 +206,44 @@ public class PointServiceTest {
         // then : 포인트 내역에 충전 기록이 추가 되는지 확인
         verify(userPointTable).insertOrUpdate(eq(id), eq(currentPoint + chargePoint));
         verify(pointHistoryTable).insert(eq(id), eq(chargePoint), eq(TransactionType.CHARGE), anyLong());
+    }
+
+    @Test
+    @DisplayName("포인트 내역이 있는 사용자의 경우 포인트 내역을 반환한다")
+    void showPointHistory() {
+        // given : 사용자에게 임의로 포인트 내역을 부여한다.
+        List<PointHistory> histories = List.of(
+                new PointHistory(1L, id, 2000, TransactionType.CHARGE, System.currentTimeMillis()),
+                new PointHistory(2L, id, 500, TransactionType.USE, System.currentTimeMillis())
+        );
+        // 존재하는 사용자임을 세팅
+        UserPoint user = new UserPoint(id, 1000L, System.currentTimeMillis());
+        when(userPointTable.selectById(id)).thenReturn(user);
+
+        // when : 포인트 내역을 저장한 후 조회 시 내역 출력
+        when(pointHistoryTable.selectAllByUserId(id)).thenReturn(histories);
+        List<PointHistory> result = pointService.getPointHistory(id);
+
+        // then : 반환된 내역이 예상 값과 일치한지 확인
+        assertThat(result).isEqualTo(histories);
+    }
+
+    @Test
+    @DisplayName("포인트 내역이 없는 사용자의 경우 빈 리스트 반환")
+    void showEmptyPointHistory() {
+        // given : 포인트 내역이 없는 사용자 설정
+        List<PointHistory> emptyHistories = Collections.emptyList();
+
+        // 존재하는 사용자임을 세팅
+        UserPoint user = new UserPoint(id, 1000L, System.currentTimeMillis());
+        when(userPointTable.selectById(id)).thenReturn(user);
+
+        // when : 포인트 내역 조회 - 내역이 없으므로 빈 리스트 반환
+        when(pointHistoryTable.selectAllByUserId(id)).thenReturn(emptyHistories);
+
+        List<PointHistory> result = pointService.getPointHistory(id);
+
+        // then : 빈 리스트 반환
+        assertThat(result).isEqualTo(emptyHistories);
     }
 }

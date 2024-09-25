@@ -9,6 +9,7 @@ import io.hhplus.tdd.point.exception.PointException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -70,6 +71,8 @@ public class PointService {
     public List<PointHistory> getPointHistory(long id) {
 
         selectPointById(id);
-        return pointHistoryTable.selectAllByUserId(id);
+
+        List<PointHistory> histories = pointHistoryTable.selectAllByUserId(id);
+        return histories.isEmpty() ? Collections.emptyList() : histories;
     }
 }
