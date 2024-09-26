@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +20,8 @@ public class PointService {
 
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable;
+    // 동시성 제어
+    private final Lock lock = new ReentrantLock();
 
     public UserPoint selectPointById(long id) {
 
@@ -33,39 +37,49 @@ public class PointService {
     }
 
     public UserPoint charge(long id, long amount) {
+        // 동기화 시작
+        lock.lock();
+        try {
+            PointValidator.validateId(id);
+            PointValidator.validateAmount(amount);
 
-        PointValidator.validateId(id);
-        PointValidator.validateAmount(amount);
+            UserPoint userPoint = selectPointById(id);
+            long updateAmount = userPoint.point() + amount;
 
-        UserPoint userPoint = selectPointById(id);
-        long updateAmount = userPoint.point() + amount;
+            // 포인트 충전
+            UserPoint updateUserPoint = userPointTable.insertOrUpdate(id, updateAmount);
 
-        // 포인트 충전
-        UserPoint updateUserPoint = userPointTable.insertOrUpdate(id, updateAmount);
+            // 포인트 충전 내역 추가
+            pointHistoryTable.insert(id, amount, TransactionType.CHARGE, System.currentTimeMillis());
 
-        // 포인트 충전 내역 추가
-        pointHistoryTable.insert(id, amount, TransactionType.CHARGE, System.currentTimeMillis());
+            return updateUserPoint;
+        } finally {
+            lock.unlock();
+        }
 
-        return updateUserPoint;
     }
 
     public UserPoint use(long id, long amount) {
+        lock.lock();
+        try {
+            PointValidator.validateId(id);
 
-        PointValidator.validateId(id);
+            UserPoint userPoint = selectPointById(id);
+            PointValidator.validateUseAmount(userPoint.point(), amount);
 
-        UserPoint userPoint = selectPointById(id);
-        PointValidator.validateUseAmount(userPoint.point(), amount);
+            if (userPoint.point() < amount) {
+                throw new PointException("잔여 포인트가 부족합니다.");
+            }
 
-        if (userPoint.point() < amount) {
-            throw new PointException("잔여 포인트가 부족합니다.");
+            long updateAmount = userPoint.point() - amount;
+            UserPoint updateUserPoint = userPointTable.insertOrUpdate(id, updateAmount);
+
+            // 포인트 사용 내역
+            pointHistoryTable.insert(id, amount, TransactionType.USE, System.currentTimeMillis());
+            return updateUserPoint;
+        } finally {
+            lock.unlock();
         }
-
-        long updateAmount = userPoint.point() - amount;
-        UserPoint updateUserPoint = userPointTable.insertOrUpdate(id, updateAmount);
-
-        // 포인트 사용 내역
-        pointHistoryTable.insert(id, amount, TransactionType.USE, System.currentTimeMillis());
-        return updateUserPoint;
     }
 
     public List<PointHistory> getPointHistory(long id) {
