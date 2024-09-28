@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.locks.Lock;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Service
@@ -20,8 +20,12 @@ public class PointService {
 
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable;
-    // 동시성 제어
-    private final Lock lock = new ReentrantLock();
+    // 사용자별 동시성 제어를 위한 Lock
+    private final ConcurrentHashMap<Long, ReentrantLock> userLocks = new ConcurrentHashMap<>();
+
+    private ReentrantLock getUserLock(long userId) {
+        return userLocks.computeIfAbsent(userId, id -> new ReentrantLock());
+    }
 
     public UserPoint selectPointById(long id) {
 
@@ -37,7 +41,8 @@ public class PointService {
     }
 
     public UserPoint charge(long id, long amount) {
-        // 동기화 시작
+        // 사용자에 대한 Lock을 가지고 와서 동기화
+        ReentrantLock lock = getUserLock(id);
         lock.lock();
         try {
             PointValidator.validateId(id);
@@ -60,6 +65,8 @@ public class PointService {
     }
 
     public UserPoint use(long id, long amount) {
+        // 사용자에 대한 Lock을 가지고 와서 동기화
+        ReentrantLock lock = getUserLock(id);
         lock.lock();
         try {
             PointValidator.validateId(id);

@@ -46,6 +46,30 @@ public class ConcurrencyTest {
     }
 
     @Test
+    @DisplayName("동시에 여러 사용자가 포인트 충전 및 사용 요청이 들어온 경우")
+    void pointChargeAndUseDifferentUsers() {
+        // given : 여러 사용자 설정
+        long user1 = 2L;
+        long user2 = 3L;
+        userPointTable.insertOrUpdate(user1, 0L);
+        userPointTable.insertOrUpdate(user2, 500L);
+
+        // when : 두 사용자가 동시에 포인트 충전 및 사용
+        CompletableFuture.allOf(
+                CompletableFuture.runAsync(() -> pointService.charge(user1, 200L)),
+                CompletableFuture.runAsync(() -> pointService.use(user1, 100L)),
+                CompletableFuture.runAsync(() -> pointService.charge(user2, 50L)),
+                CompletableFuture.runAsync(() -> pointService.use(user2, 30L))
+        ).join();
+
+        // then : 각 사용자의 포인트 상태 확인
+        UserPoint userPoint1 = pointService.selectPointById(user1);
+        UserPoint userPoint2 = pointService.selectPointById(user2);
+        assertThat(userPoint1.point()).isEqualTo(100L);
+        assertThat(userPoint2.point()).isEqualTo(520L);
+    }
+
+    @Test
     @DisplayName("포인트 사용 시 잔여 포인트보다 더 많은 포인트를 사용하려고 하는 경우")
     void useMorePointsThanHave() {
 
