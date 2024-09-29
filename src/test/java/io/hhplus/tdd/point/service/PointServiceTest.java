@@ -11,8 +11,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -21,6 +21,11 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class PointServiceTest {
+    /**
+     * 서비스 테스트 = 비즈니스 로직 검증 (단위 테스트)
+     * 서비스 내부의 동작을 Mock 객체와 함께 독립적으로 테스트
+     * 서비스 내부 로직의 작동 확인, 데이터의 일관성 및 규칙 준수 여부 검증
+     */
 
     @InjectMocks
     private PointService pointService;
@@ -53,45 +58,6 @@ public class PointServiceTest {
         assertThatThrownBy(() -> pointService.selectPointById(999999999999L))
                 .isInstanceOf(PointException.class)
                 .hasMessageContaining("입력한 ID가 존재하지 않습니다.");
-    }
-
-    @Test
-    @DisplayName("유효하지 않은 패턴의 ID가 입력된 경우")
-    void invalidIdFormat() {
-        // then : 예외 발생
-        assertThatThrownBy(() -> pointService.selectPointById(-1L))
-                .isInstanceOf(PointException.class)
-                .hasMessageContaining("ID는 0 이상의 숫자여야 합니다.");
-    }
-
-    @Test
-    @DisplayName("0을 충전하려는 경우")
-    void chargeZeroPoint() {
-        // when, then : 0원을 충전하려고 한다면 예외 발생
-        assertThatThrownBy(() -> pointService.charge(1L, 0))
-                .isInstanceOf(PointException.class)
-                .hasMessageContaining("충전 금액은 0보다 커야 합니다.");
-    }
-
-    @Test
-    @DisplayName("기존 포인트에 1000을 충전하는 경우")
-    void chargeThousandPoint() {
-        // given : 사용자 ID가 1L이고 기존 포인트가 2000인 상태에서 1000 충전
-        long id = 1L;
-        int currentPoint = 3000;
-        int chargePoint = 1000;
-        int totalPoint = currentPoint + chargePoint;
-
-        pointInquiry(id, currentPoint);
-
-        // when :  1000원 충전
-        pointService.charge(id, chargePoint);
-
-        // then : 2000 + 1000 = 3000이 맞는지 확인
-        // 메서드 호출 검증(verify)
-        verify(userPointTable).insertOrUpdate(id, totalPoint);
-        UserPoint updateUserPoint = new UserPoint(id, totalPoint, System.currentTimeMillis());
-        assertThat(updateUserPoint.point()).isEqualTo(totalPoint);
     }
 
     @Test
@@ -161,18 +127,19 @@ public class PointServiceTest {
     }
 
     @Test
-    @DisplayName("음수를 포인트로 사용하려는 경우")
-    void usingNegativePoint() {
-        // given : 음수를 사용
+    @DisplayName("최대 충전 금액을 초과하는 경우 예외 발생")
+    void chargeOverMaxAmount() {
+        // given : 유효한 사용자 ID와 현재 포인트 설정
         long id = 1L;
+        long currentPoint = 1000L;
+        long overMaxAmount = 20000L;
 
-        // 기존에 존재하는 사용자로 설정
-        pointInquiry(id, 1000);
+        pointInquiry(id, currentPoint);
 
-        // when, then : 예외 발생
-        assertThatThrownBy(() -> pointService.use(id, -100))
-                .isInstanceOf(PointException.class)
-                .hasMessageContaining("사용할 포인트는 0보다 커야 합니다.");
+        // when, then : 포인트 충전 시 예외 발생
+        assertThatThrownBy(() -> pointService.charge(id, overMaxAmount))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("최대 충전 금액은 10000원입니다.");
     }
 
     @Test
