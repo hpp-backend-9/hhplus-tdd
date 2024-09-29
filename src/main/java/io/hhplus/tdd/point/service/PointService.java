@@ -36,7 +36,7 @@ public class PointService {
 
         // 금액 유효성 검증
         PointValidator.validateAmount(amount);
-        
+
         long updateAmount = userPoint.point() + amount;
 
         // 포인트 충전
